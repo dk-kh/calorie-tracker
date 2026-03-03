@@ -32,7 +32,7 @@ class AnalysisResult:
 FOOD_ANALYSIS_PROMPT = """You are a nutrition expert. Look at this food image carefully.
 
 Respond ONLY with a valid JSON object, no markdown, no explanation, just JSON:
-{"dish": "название блюда на русском", "calories": 500, "protein": 25, "fat": 15, "carbs": 60, "confidence": "high"}
+{"dish": "dish_name_on_russian", "calories": kkal_count, "protein": protein_count, "fat": fat_count, "carbs": carbs_count, "confidence": "high"}
 
 Rules:
 - dish: food name in Russian
