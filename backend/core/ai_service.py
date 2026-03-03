@@ -35,12 +35,11 @@ Respond ONLY with a valid JSON object, no markdown, no explanation, just JSON:
 {"dish": "НАЗВАНИЕ_БЛЮДА", "calories": ЧИСЛО, "protein": ЧИСЛО, "fat": ЧИСЛО, "carbs": ЧИСЛО, "confidence": "high"}
 
 Rules:
-- dish: food name in Russian
-- calories: total kcal as integer
-- protein, fat, carbs: grams as numbers
-- confidence: "high" if food is clearly visible, "medium" if partially, "low" if unclear
-- ALL fields are required, use real estimates based on typical portions
-- Do NOT return zeros unless the image has no food at all
+- Replace НАЗВАНИЕ_БЛЮДА with the actual food name in Russian
+- Replace each ЧИСЛО with a realistic number based on what you see
+- For a pizza slice: ~280-350 kcal. For a salad: ~150-300. For rice+chicken: ~400-500
+- Do NOT copy example numbers. Estimate based on the actual food in the image.
+- confidence: high/medium/low depending on how clearly you see the food
 """
 
 _MOCK_FOODS = [
