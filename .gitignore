@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Виртуальное окружение
+venv/
+env/
+.venv/
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Секреты и конфиг
+backend/.env
+
+# Загруженные фото
+backend/uploads/
+
+# Логи
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Windows
+Thumbs.db
+desktop.ini
