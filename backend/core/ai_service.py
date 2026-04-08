@@ -1,18 +1,9 @@
 """
-AI-сервис для анализа фотографий еды.
-
-USE_MOCK_AI=true  -> заглушка (дом, ноутбук)
-USE_MOCK_AI=false -> реальный Ollama (универский комп)
+AI-сервис: Ollama (primary) -> DeepSeek API (fallback) -> Mock
 """
-import json
-import base64
-import random
-import re
-import logging
+import json, base64, random, re, logging
 from dataclasses import dataclass
-
 import httpx
-
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -29,17 +20,12 @@ class AnalysisResult:
     raw_response: str = ""
 
 
-FOOD_ANALYSIS_PROMPT = """You are a nutrition expert. Look at this food image carefully.
-
-Respond ONLY with a valid JSON object, no markdown, no explanation, just JSON:
-{"dish": "НАЗВАНИЕ_БЛЮДА", "calories": ЧИСЛО, "protein": ЧИСЛО, "fat": ЧИСЛО, "carbs": ЧИСЛО, "confidence": "high"}
-
-Rules:
-- Replace НАЗВАНИЕ_БЛЮДА with the actual food name in Russian
-- Replace each ЧИСЛО with a realistic number based on what you see
-- For a pizza slice: ~280-350 kcal. For a salad: ~150-300. For rice+chicken: ~400-500
-- Do NOT copy example numbers. Estimate based on the actual food in the image.
-- confidence: high/medium/low depending on how clearly you see the food
+FOOD_PROMPT = """You are a nutrition expert. Analyze the food in this image.
+Respond ONLY with JSON, no markdown, no extra text:
+{"dish": "НАЗВАНИЕ_БЛЮДА_НА_РУССКОМ", "calories": ЧИСЛО, "protein": ЧИСЛО, "fat": ЧИСЛО, "carbs": ЧИСЛО, "confidence": "high"}
+- Replace each placeholder with real values based on what you see
+- Do NOT copy example numbers
+- confidence: high/medium/low
 """
 
 _MOCK_FOODS = [
@@ -47,111 +33,97 @@ _MOCK_FOODS = [
     AnalysisResult("Куриная грудка с рисом", 450, 38, 8, 48, "high"),
     AnalysisResult("Борщ со сметаной", 280, 12, 10, 32, "medium"),
     AnalysisResult("Цезарь с курицей", 520, 28, 32, 24, "high"),
-    AnalysisResult("Греческий йогурт с ягодами", 180, 14, 4, 22, "high"),
-    AnalysisResult("Пицца Пепперони (2 куска)", 680, 24, 22, 88, "medium"),
+    AnalysisResult("Пицца Пепперони 2 куска", 680, 24, 22, 88, "medium"),
     AnalysisResult("Гречневая каша", 310, 12, 4, 58, "high"),
     AnalysisResult("Омлет с овощами", 260, 18, 16, 8, "high"),
 ]
 
 
-def _mock_analyze() -> AnalysisResult:
+def _mock() -> AnalysisResult:
     base = random.choice(_MOCK_FOODS)
-    noise = lambda v: round(v * random.uniform(0.9, 1.1), 1)
+    n = lambda v: round(v * random.uniform(0.9, 1.1), 1)
+    return AnalysisResult(base.dish_name, n(base.calories), n(base.protein),
+                          n(base.fat), n(base.carbs), base.confidence, "[MOCK]")
+
+
+def _parse(raw: str) -> AnalysisResult:
+    cleaned = re.sub(r'```(?:json)?\s*', '', raw).replace('```', '').strip()
+    s, e = cleaned.find("{"), cleaned.rfind("}") + 1
+    if s == -1 or e == 0:
+        raise ValueError(f"No JSON: {raw[:200]}")
+    data = json.loads(cleaned[s:e])
     return AnalysisResult(
-        dish_name=base.dish_name,
-        calories=noise(base.calories),
-        protein=noise(base.protein),
-        fat=noise(base.fat),
-        carbs=noise(base.carbs),
-        confidence=base.confidence,
-        raw_response="[MOCK]",
-    )
-
-
-def _image_to_base64(image_bytes: bytes) -> str:
-    return base64.b64encode(image_bytes).decode("utf-8")
-
-
-def _parse_ollama_response(raw: str) -> AnalysisResult:
-    """
-    Устойчивый парсер. LLaVA иногда оборачивает JSON в ```json```
-    или добавляет текст до/после — вытаскиваем JSON любым способом.
-    """
-    logger.debug(f"Raw Ollama response: {raw[:500]}")
-
-    # Убираем markdown-блоки
-    cleaned = re.sub(r'```(?:json)?\s*', '', raw).strip()
-    cleaned = cleaned.replace('```', '')
-
-    # Ищем первый { и последний }
-    start = cleaned.find("{")
-    end = cleaned.rfind("}") + 1
-
-    if start == -1 or end == 0:
-        raise ValueError(f"JSON not found in: {raw[:300]}")
-
-    json_str = cleaned[start:end]
-    data = json.loads(json_str)
-
-    # Извлекаем с поддержкой разных ключей
-    calories = float(data.get("calories") or data.get("kcal") or 0)
-    protein  = float(data.get("protein") or data.get("proteins") or 0)
-    fat      = float(data.get("fat") or data.get("fats") or 0)
-    carbs    = float(data.get("carbs") or data.get("carbohydrates") or 0)
-    dish     = str(data.get("dish") or data.get("name") or data.get("food") or "Неизвестное блюдо")
-    conf     = str(data.get("confidence") or "medium")
-
-    return AnalysisResult(
-        dish_name=dish,
-        calories=calories,
-        protein=protein,
-        fat=fat,
-        carbs=carbs,
-        confidence=conf,
+        dish_name=str(data.get("dish") or data.get("name") or "Неизвестное блюдо"),
+        calories=float(data.get("calories") or data.get("kcal") or 0),
+        protein=float(data.get("protein") or 0),
+        fat=float(data.get("fat") or 0),
+        carbs=float(data.get("carbs") or 0),
+        confidence=str(data.get("confidence") or "medium"),
         raw_response=raw,
     )
 
 
-async def _real_analyze(image_bytes: bytes) -> AnalysisResult:
-    image_b64 = _image_to_base64(image_bytes)
-
+async def _ollama(image_bytes: bytes) -> AnalysisResult:
     payload = {
         "model": settings.ollama_model,
-        "prompt": FOOD_ANALYSIS_PROMPT,
-        "images": [image_b64],
+        "prompt": FOOD_PROMPT,
+        "images": [base64.b64encode(image_bytes).decode()],
         "stream": False,
-        "options": {
-            "temperature": 0.1,
-            "num_predict": 200,
-        }
+        "options": {"temperature": 0.1, "num_predict": 200},
     }
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(f"{settings.ollama_url}/api/generate", json=payload)
+        r.raise_for_status()
+    return _parse(r.json().get("response", ""))
 
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        response = await client.post(
-            f"{settings.ollama_url}/api/generate",
+
+async def _deepseek(image_bytes: bytes) -> AnalysisResult:
+    """DeepSeek Vision API как запасной вариант."""
+    api_key = getattr(settings, "deepseek_api_key", None)
+    if not api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY не задан в .env")
+
+    b64 = base64.b64encode(image_bytes).decode()
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                {"type": "text", "text": FOOD_PROMPT}
+            ]
+        }],
+        "max_tokens": 200,
+        "temperature": 0.1,
+    }
+    async with httpx.AsyncClient(timeout=60.0) as c:
+        r = await c.post(
+            "https://api.deepseek.com/v1/chat/completions",
             json=payload,
+            headers={"Authorization": f"Bearer {api_key}"},
         )
-        response.raise_for_status()
-
-    raw_text = response.json().get("response", "")
-    return _parse_ollama_response(raw_text)
+        r.raise_for_status()
+    text = r.json()["choices"][0]["message"]["content"]
+    return _parse(text)
 
 
 async def analyze_food_image(image_bytes: bytes) -> AnalysisResult:
     if settings.use_mock_ai:
-        logger.info("AI mode: MOCK")
-        return _mock_analyze()
+        return _mock()
 
-    logger.info(f"AI mode: Ollama ({settings.ollama_model})")
+    # Пробуем Ollama
     try:
-        return await _real_analyze(image_bytes)
-    except httpx.ConnectError:
-        raise RuntimeError("Ollama недоступен. Запусти: ollama serve")
-    except (json.JSONDecodeError, ValueError) as e:
-        logger.error(f"Parse error: {e}")
-        return AnalysisResult(
-            dish_name="Не удалось распознать блюдо",
-            calories=0, protein=0, fat=0, carbs=0,
-            confidence="low",
-            raw_response=str(e),
-        )
+        result = await _ollama(image_bytes)
+        logger.info("AI: Ollama OK")
+        return result
+    except Exception as e:
+        logger.warning(f"Ollama failed: {e} — пробуем DeepSeek")
+
+    # Fallback: DeepSeek
+    try:
+        result = await _deepseek(image_bytes)
+        logger.info("AI: DeepSeek OK")
+        return result
+    except Exception as e:
+        logger.error(f"DeepSeek failed: {e}")
+        return AnalysisResult("Не удалось распознать", 0, 0, 0, 0, "low", str(e))

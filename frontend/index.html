@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NutriLens — AI трекер калорий</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080810;--surface:#10101a;--card:#16161f;--card2:#1c1c28;--border:#252535;
+  --accent:#7fff6e;--blue:#6eb5ff;--pink:#ff6e9c;--yellow:#ffd166;--text:#e2e2f0;--muted:#5a5a72;--r:14px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Golos Text',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+/* LANDING */
+#landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 20px;position:relative;}
+#landing::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 30%,rgba(127,255,110,.07) 0%,transparent 70%);}
+.land-logo{font-family:'Unbounded',sans-serif;font-size:48px;font-weight:900;letter-spacing:-2px;margin-bottom:16px;}
+.land-logo em{color:var(--accent);font-style:normal;}
+.land-sub{font-size:17px;color:var(--muted);max-width:480px;line-height:1.6;margin-bottom:48px;}
+.land-features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:680px;width:100%;margin-bottom:48px;}
+.land-feat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;text-align:left;}
+.land-feat-icon{font-size:24px;margin-bottom:10px;}
+.land-feat-title{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;margin-bottom:6px;}
+.land-feat-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+.land-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.land-btn-p{background:var(--accent);color:#080810;font-family:'Golos Text',sans-serif;font-weight:700;
+  font-size:15px;padding:14px 32px;border-radius:10px;border:none;cursor:pointer;transition:all .15s;}
+.land-btn-p:hover{background:#96ff86;transform:translateY(-1px);}
+.land-btn-g{background:transparent;color:var(--text);font-family:'Golos Text',sans-serif;font-weight:600;
+  font-size:15px;padding:14px 32px;border-radius:10px;border:1px solid var(--border);cursor:pointer;transition:all .15s;}
+.land-btn-g:hover{border-color:var(--muted);}
+.land-stats{display:flex;gap:32px;margin-top:48px;flex-wrap:wrap;justify-content:center;}
+.land-stat-v{font-family:'Unbounded',sans-serif;font-size:28px;font-weight:900;color:var(--accent);}
+.land-stat-l{font-size:12px;color:var(--muted);margin-top:2px;}
+/* AUTH */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.auth-card{width:380px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px;}
+.auth-logo{font-family:'Unbounded',sans-serif;font-size:18px;font-weight:900;text-align:center;margin-bottom:8px;}
+.auth-logo em{color:var(--accent);font-style:normal;}
+.auth-back{font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:20px;display:inline-block;transition:color .15s;}
+.auth-back:hover{color:var(--text);}
+.auth-tabs{display:flex;gap:4px;background:var(--bg);border-radius:9px;padding:3px;margin-bottom:20px;}
+.atab{flex:1;text-align:center;padding:8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s;font-weight:500;}
+.atab.active{background:var(--card);color:var(--text);}
+/* APP */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:24px 0;position:fixed;left:0;top:0;bottom:0;z-index:100;}
+.main{margin-left:220px;flex:1;padding:28px 32px;}
+.logo{font-family:'Unbounded',sans-serif;font-weight:900;font-size:15px;padding:0 20px 22px;
+  border-bottom:1px solid var(--border);}
+.logo em{color:var(--accent);font-style:normal;}
+nav{margin-top:12px;flex:1;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:10px 20px;cursor:pointer;
+  font-size:13px;color:var(--muted);transition:all .15s;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.02);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(127,255,110,.04);}
+.nav-icon{font-size:14px;width:18px;text-align:center;}
+.s-footer{padding:16px 20px 0;border-top:1px solid var(--border);}
+.ai-dot{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--accent);
+  background:rgba(127,255,110,.07);border:1px solid rgba(127,255,110,.18);border-radius:20px;padding:4px 10px;}
+.ai-dot::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+.btn-logout{width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);
+  color:var(--muted);font-family:'Golos Text',sans-serif;font-size:12px;padding:8px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.btn-logout:hover{color:var(--text);border-color:var(--muted);}
+/* PAGES */
+.page{display:none;animation:fadeUp .2s ease;}
+.page.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.ph{margin-bottom:24px;}
+.ph-title{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:900;letter-spacing:-1px;}
+.ph-sub{color:var(--muted);font-size:12px;margin-top:5px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
+.card-title{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;margin-bottom:14px;letter-spacing:.3px;}
+.stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;}
+.scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.scard:nth-child(1)::after{background:var(--accent);}
+.scard:nth-child(2)::after{background:var(--blue);}
+.scard:nth-child(3)::after{background:var(--pink);}
+.scard:nth-child(4)::after{background:var(--yellow);}
+.sl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.sv{font-family:'Unbounded',sans-serif;font-size:22px;font-weight:700;letter-spacing:-1px;margin-top:4px;}
+.su{font-size:10px;color:var(--muted);margin-top:1px;}
+.prog-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;}
+.prog-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+.prog-fill.over{background:var(--pink);}
+.chart-container{position:relative;height:180px;margin-top:4px;}
+.meal-list{display:flex;flex-direction:column;gap:8px;}
+.meal-item{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.meal-thumb{width:40px;height:40px;border-radius:7px;background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid var(--border);}
+.meal-info{flex:1;min-width:0;}
+.meal-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.meal-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.meal-kcal{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.meal-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:3px;transition:color .15s;flex-shrink:0;}
+.meal-del:hover{color:var(--pink);}
+.drop-zone{border:1.5px dashed var(--border);border-radius:var(--r);padding:44px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(127,255,110,.03);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:32px;margin-bottom:10px;}
+.drop-title{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;margin-bottom:4px;}
+.drop-hint{font-size:11px;color:var(--muted);}
+.result-macro{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px;text-align:center;}
+.mc-v{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;}
+.mc-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-top:2px;}
+.conf{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:3px 9px;border-radius:20px;margin-bottom:12px;}
+.conf.high{background:rgba(127,255,110,.08);color:var(--accent);border:1px solid rgba(127,255,110,.2);}
+.conf.medium{background:rgba(255,209,102,.08);color:var(--yellow);border:1px solid rgba(255,209,102,.2);}
+.conf.low{background:rgba(255,110,156,.08);color:var(--pink);border:1px solid rgba(255,110,156,.2);}
+/* WEIGHT */
+.weight-input-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;}
+.weight-list{display:flex;flex-direction:column;gap:8px;}
+.weight-item{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;}
+.weight-val{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;color:var(--accent);width:80px;flex-shrink:0;}
+.weight-date{flex:1;font-size:12px;}
+.weight-diff{font-size:12px;font-weight:600;flex-shrink:0;}
+.weight-diff.up{color:var(--pink);}
+.weight-diff.down{color:var(--accent);}
+.btn{font-family:'Golos Text',sans-serif;font-size:13px;font-weight:600;padding:10px 20px;border-radius:9px;border:none;cursor:pointer;transition:all .15s;}
+.btn-p{background:var(--accent);color:#080810;font-weight:700;}
+.btn-p:hover{background:#96ff86;transform:translateY(-1px);}
+.btn-p:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-g{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-g:hover{color:var(--text);border-color:var(--muted);}
+.btn-row{display:flex;gap:9px;margin-top:16px;}
+.fg{margin-bottom:12px;}
+.fl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;display:block;}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;
+  font-family:'Golos Text',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.fi:focus{border-color:var(--accent);}
+.fi::placeholder{color:var(--muted);}
+.rem-item{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.rem-time{font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;width:60px;flex-shrink:0;}
+.rem-label{flex:1;font-size:13px;}
+.btn-del{background:rgba(255,110,156,.08);color:var(--pink);border:1px solid rgba(255,110,156,.15);
+  font-family:'Golos Text',sans-serif;font-size:11px;padding:6px 12px;border-radius:7px;cursor:pointer;transition:all .15s;}
+.btn-del:hover{background:rgba(255,110,156,.15);}
+.link-code{font-family:'Unbounded',sans-serif;font-size:36px;font-weight:900;letter-spacing:8px;
+  text-align:center;color:var(--accent);background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin:16px 0;}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--card2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 16px;font-size:13px;z-index:9998;transform:translateY(60px);
+  opacity:0;transition:all .25s cubic-bezier(.4,0,.2,1);max-width:280px;}
+#toast.show{transform:none;opacity:1;}
+#toast.success{border-color:rgba(127,255,110,.25);color:var(--accent);}
+#toast.error{border-color:rgba(255,110,156,.25);color:var(--pink);}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.2);border-top-color:#080810;
+  animation:rot .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+.empty-icon{font-size:28px;margin-bottom:8px;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- ЛЕНДИНГ -->
+<div id="landing">
+  <div class="land-logo">Nutri<em>Lens</em></div>
+  <p class="land-sub">AI-трекер питания с распознаванием еды по фото.<br>Считай калории без ручного ввода.</p>
+  <div class="land-features">
+    <div class="land-feat"><div class="land-feat-icon">📷</div><div class="land-feat-title">Фото → КБЖУ</div><div class="land-feat-desc">Сфотографируй блюдо — AI распознает и посчитает калории мгновенно</div></div>
+    <div class="land-feat"><div class="land-feat-icon">📊</div><div class="land-feat-title">Дневник и графики</div><div class="land-feat-desc">История питания, динамика веса, прогресс к цели</div></div>
+    <div class="land-feat"><div class="land-feat-icon">🤖</div><div class="land-feat-title">Telegram-бот</div><div class="land-feat-desc">Фото в чат — данные автоматически попадают в дневник</div></div>
+  </div>
+  <div class="land-btns">
+    <button class="land-btn-p" onclick="goAuth('register')">Начать бесплатно</button>
+    <button class="land-btn-g" onclick="goAuth('login')">Войти в аккаунт</button>
+  </div>
+  <div class="land-stats">
+    <div><div class="land-stat-v">100%</div><div class="land-stat-l">Локальный AI</div></div>
+    <div><div class="land-stat-v">7B</div><div class="land-stat-l">Параметров LLaVA</div></div>
+    <div><div class="land-stat-v">0₸</div><div class="land-stat-l">Без подписки</div></div>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">Nutri<em>Lens</em></div>
+    <div class="auth-back" onclick="showLanding()">← На главную</div>
+    <div class="auth-tabs">
+      <div class="atab active" onclick="switchTab('login')">Войти</div>
+      <div class="atab" onclick="switchTab('register')">Регистрация</div>
+    </div>
+    <div id="login-form">
+      <div class="fg"><label class="fl">Логин</label><input class="fi" id="l-user" placeholder="username"></div>
+      <div class="fg"><label class="fl">Пароль</label><input class="fi" id="l-pass" type="password" placeholder="••••••••"></div>
+      <button class="btn btn-p" style="width:100%;margin-top:4px;" onclick="doLogin()">Войти</button>
+    </div>
+    <div id="register-form" style="display:none">
+      <div class="fg"><label class="fl">Логин</label><input class="fi" id="r-user" placeholder="username"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="r-email" type="email" placeholder="you@mail.com"></div>
+      <div class="fg"><label class="fl">Пароль</label><input class="fi" id="r-pass" type="password" placeholder="••••••••"></div>
+      <div class="fg"><label class="fl">Цель ккал/день</label><input class="fi" id="r-goal" type="number" value="2000"></div>
+      <button class="btn btn-p" style="width:100%;margin-top:4px;" onclick="doRegister()">Создать аккаунт</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="main-app" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="logo">Nutri<em>Lens</em></div>
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> Сегодня</div>
+      <div class="nav-item" onclick="showPage('upload',this)"><span class="nav-icon">⊕</span> Добавить</div>
+      <div class="nav-item" onclick="showPage('journal',this)"><span class="nav-icon">≡</span> Дневник</div>
+      <div class="nav-item" onclick="showPage('weight',this)"><span class="nav-icon">⚖</span> Вес</div>
+      <div class="nav-item" onclick="showPage('reminders',this)"><span class="nav-icon">◷</span> Напоминания</div>
+      <div class="nav-item" onclick="showPage('link',this)"><span class="nav-icon">🔗</span> Telegram</div>
+    </nav>
+    <div class="s-footer">
+      <div id="s-user" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
+      <div class="ai-dot">AI активен</div>
+      <button class="btn-logout" onclick="doLogout()">Выйти</button>
+    </div>
+  </aside>
+  <main class="main">
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="page active">
+      <div class="ph"><div class="ph-title">Сегодня</div><div class="ph-sub" id="today-label"></div></div>
+      <div class="stats4">
+        <div class="scard"><div class="sl">Калории</div><div class="sv" id="s-kcal">—</div><div class="su">ккал</div></div>
+        <div class="scard"><div class="sl">Белки</div><div class="sv" id="s-prot">—</div><div class="su">г</div></div>
+        <div class="scard"><div class="sl">Жиры</div><div class="sv" id="s-fat">—</div><div class="su">г</div></div>
+        <div class="scard"><div class="sl">Углеводы</div><div class="sv" id="s-carb">—</div><div class="su">г</div></div>
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="prog-row"><span>Прогресс дня</span><span id="prog-label">— / — ккал</span></div>
+        <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-title">ГРАФИК ЗА 7 ДНЕЙ</div>
+        <div class="chart-container"><canvas id="weekChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ПРИЁМЫ ПИЩИ СЕГОДНЯ</div>
+        <div class="meal-list" id="today-meals"></div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div id="page-upload" class="page">
+      <div class="ph"><div class="ph-title">Добавить еду</div><div class="ph-sub">Сфотографируй блюдо — AI посчитает КБЖУ</div></div>
+      <div class="card">
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" accept="image/*" id="file-input" onchange="onFileChange(event)">
+          <div class="drop-icon">📷</div>
+          <div class="drop-title">Загрузи фото еды</div>
+          <div class="drop-hint">Перетащи или нажми · JPEG, PNG, WEBP · до 10 МБ</div>
+        </div>
+        <div id="preview-wrap" style="display:none;margin-top:16px;">
+          <img id="preview-img" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px;border:1px solid var(--border);" alt="">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-p" id="analyze-btn" onclick="analyzePhoto()" disabled>Анализировать</button>
+          <button class="btn btn-g" onclick="resetUpload()">Сбросить</button>
+        </div>
+        <div id="result-box" style="display:none;margin-top:16px;background:var(--card2);border:1px solid var(--border);border-radius:var(--r);padding:18px;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;margin-bottom:6px;" id="r-dish"></div>
+          <div class="conf" id="r-conf"></div>
+          <div class="result-macro">
+            <div class="mc"><div class="mc-v" id="r-kcal">—</div><div class="mc-l">ккал</div></div>
+            <div class="mc"><div class="mc-v" id="r-prot">—</div><div class="mc-l">белки г</div></div>
+            <div class="mc"><div class="mc-v" id="r-fat">—</div><div class="mc-l">жиры г</div></div>
+            <div class="mc"><div class="mc-v" id="r-carb">—</div><div class="mc-l">углев. г</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Journal -->
+    <div id="page-journal" class="page">
+      <div class="ph"><div class="ph-title">Дневник</div><div class="ph-sub">История питания за период</div></div>
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+          <div><label class="fl">От</label><input type="date" class="fi" id="j-from" style="width:150px;"></div>
+          <div><label class="fl">До</label><input type="date" class="fi" id="j-to" style="width:150px;"></div>
+          <button class="btn btn-p" onclick="loadJournal()">Показать</button>
+          <button class="btn btn-g" onclick="setJournalToday()">Сегодня</button>
+        </div>
+        <div id="journal-summary" style="display:none;margin-bottom:14px;"></div>
+        <div class="meal-list" id="journal-meals"></div>
+      </div>
+    </div>
+
+    <!-- Weight -->
+    <div id="page-weight" class="page">
+      <div class="ph"><div class="ph-title">Вес</div><div class="ph-sub">Динамика и история замеров</div></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">ДОБАВИТЬ ЗАМЕР</div>
+        <div class="weight-input-row">
+          <div><label class="fl">Вес (кг)</label><input class="fi" type="number" step="0.1" id="w-kg" placeholder="70.5" style="width:120px;"></div>
+          <div><label class="fl">Дата</label><input class="fi" type="date" id="w-date" style="width:150px;"></div>
+          <div style="flex:1;"><label class="fl">Заметка</label><input class="fi" type="text" id="w-note" placeholder="Утром натощак"></div>
+          <button class="btn btn-p" style="margin-top:auto;" onclick="addWeight()">+ Добавить</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">ГРАФИК ВЕСА</div>
+        <div style="height:180px;position:relative;"><canvas id="weightChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ИСТОРИЯ</div>
+        <div class="weight-list" id="weight-list"></div>
+      </div>
+    </div>
+
+    <!-- Reminders -->
+    <div id="page-reminders" class="page">
+      <div class="ph"><div class="ph-title">Напоминания</div><div class="ph-sub">Telegram-бот пришлёт уведомление</div></div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">НОВОЕ НАПОМИНАНИЕ</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <input class="fi" type="time" id="rem-time" style="width:130px;">
+          <input class="fi" type="text" id="rem-label" placeholder="Завтрак" style="flex:1;min-width:120px;">
+          <button class="btn btn-p" onclick="addReminder()">+ Добавить</button>
+        </div>
+      </div>
+      <div id="rem-list"></div>
+    </div>
+
+    <!-- Telegram -->
+    <div id="page-link" class="page">
+      <div class="ph"><div class="ph-title">Привязать Telegram</div><div class="ph-sub">Чтобы бот сохранял фото в твой профиль</div></div>
+      <div class="card">
+        <div class="card-title">КАК ПРИВЯЗАТЬ</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:20px;">
+          1. Нажми кнопку ниже — получишь 6-значный код<br>
+          2. Открой бота в Telegram<br>
+          3. Отправь команду <span style="color:var(--accent);font-family:monospace;">/link КОД</span><br>
+          4. Готово — фото из Telegram попадают в дневник
+        </p>
+        <button class="btn btn-p" id="get-code-btn" onclick="getLink()">Получить код</button>
+        <div id="link-code-wrap" style="display:none;">
+          <div class="link-code" id="link-code">——————</div>
+          <p style="font-size:12px;color:var(--muted);text-align:center;">Код действителен 10 минут</p>
+        </div>
+        <div id="link-status" style="margin-top:14px;font-size:13px;"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const API='http://localhost:8000/api';
+let token=localStorage.getItem('nt_token'),user=null,selFile=null,weekChartInst=null,weightChartInst=null;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('today-label').textContent=new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('w-date').value=todayStr();
+  setJournalToday();
+  const dz=document.getElementById('drop-zone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f)setFile(f);});
+  if(token)bootApp();
+  // landing уже виден по умолчанию
+});
+
+function goAuth(tab){
+  document.getElementById('landing').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+  switchTab(tab);
+}
+function showLanding(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('landing').style.display='flex';
+}
+
+async function bootApp(){
+  try{
+    user=await api('/auth/me');
+    document.getElementById('s-user').textContent='@'+user.username;
+    document.getElementById('landing').style.display='none';
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('main-app').style.display='flex';
+    loadDashboard();
+  }catch{doLogout();}
+}
+
+async function api(path,opts={}){
+  const h={'Content-Type':'application/json',...(opts.headers||{})};
+  if(token)h['Authorization']='Bearer '+token;
+  if(opts.body instanceof FormData)delete h['Content-Type'];
+  const r=await fetch(API+path,{...opts,headers:h});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||'Ошибка '+r.status);}
+  if(r.status===204)return null;
+  return r.json();
+}
+
+function switchTab(t){
+  document.querySelectorAll('.atab').forEach((el,i)=>el.classList.toggle('active',i===(t==='login'?0:1)));
+  document.getElementById('login-form').style.display=t==='login'?'':'none';
+  document.getElementById('register-form').style.display=t==='register'?'':'none';
+}
+async function doLogin(){
+  const username=v('l-user'),password=v('l-pass');
+  if(!username||!password)return toast('Заполни поля','error');
+  try{
+    const d=await api('/auth/login',{method:'POST',body:JSON.stringify({username,password})});
+    token=d.access_token;localStorage.setItem('nt_token',token);
+    await bootApp();toast('Добро пожаловать!');
+  }catch(e){toast(e.message,'error');}
+}
+async function doRegister(){
+  const username=v('r-user'),email=v('r-email'),password=v('r-pass'),daily_calorie_goal=+v('r-goal')||2000;
+  if(!username||!email||!password)return toast('Заполни поля','error');
+  try{
+    const d=await api('/auth/register',{method:'POST',body:JSON.stringify({username,email,password,daily_calorie_goal})});
+    token=d.access_token;localStorage.setItem('nt_token',token);
+    await bootApp();toast('Аккаунт создан!');
+  }catch(e){toast(e.message,'error');}
+}
+function doLogout(){
+  token=null;user=null;localStorage.removeItem('nt_token');
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('landing').style.display='flex';
+}
+
+function showPage(name,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(el)el.classList.add('active');
+  if(name==='dashboard')loadDashboard();
+  if(name==='journal')loadJournal();
+  if(name==='reminders')loadReminders();
+  if(name==='weight')loadWeight();
+}
+
+async function loadDashboard(){
+  try{
+    const[totals,meals,weekly]=await Promise.all([api('/meals/totals'),api('/meals/today'),api('/meals/weekly')]);
+    set('s-kcal',Math.round(totals.calories));set('s-prot',totals.protein.toFixed(1));
+    set('s-fat',totals.fat.toFixed(1));set('s-carb',totals.carbs.toFixed(1));
+    const pct=Math.min(100,(totals.calories/totals.goal)*100);
+    const fill=document.getElementById('prog-fill');
+    fill.style.width=pct+'%';fill.className='prog-fill'+(pct>=100?' over':'');
+    set('prog-label',`${Math.round(totals.calories)} / ${totals.goal} ккал`);
+    renderWeekChart(weekly,totals.goal);renderMeals('today-meals',meals,true);
+  }catch(e){toast('Ошибка: '+e.message,'error');}
+}
+
+function renderWeekChart(weekly,goal){
+  const days=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'],today=new Date(),labels=[],data=[],colors=[];
+  weekly.forEach((d,i)=>{
+    const day=new Date(today);day.setDate(today.getDate()-(6-i));
+    labels.push(days[day.getDay()]);data.push(Math.round(d.calories));
+    colors.push(d.calories>=goal?'rgba(255,110,156,0.8)':i===6?'rgba(127,255,110,0.9)':'rgba(110,181,255,0.55)');
+  });
+  if(weekChartInst)weekChartInst.destroy();
+  weekChartInst=new Chart(document.getElementById('weekChart').getContext('2d'),{
+    type:'bar',data:{labels,datasets:[
+      {label:'Калории',data,backgroundColor:colors,borderRadius:6,borderSkipped:false,barThickness:26},
+      {label:'Цель',data:Array(7).fill(goal),type:'line',borderColor:'rgba(127,255,110,0.35)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1c28',borderColor:'#252535',borderWidth:1,titleColor:'#e2e2f0',bodyColor:'#5a5a72',padding:10}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#5a5a72',font:{family:"'Golos Text'",size:11}},border:{color:'transparent'}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#5a5a72',font:{family:"'Golos Text'",size:10},maxTicksLimit:5},border:{color:'transparent'},beginAtZero:true}}}
+  });
+}
+
+function renderMeals(id,meals,deletable){
+  const el=document.getElementById(id);
+  if(!meals.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🍽</div>Нет записей</div>`;return;}
+  el.innerHTML=meals.map(m=>`
+    <div class="meal-item" id="mi-${m.id}">
+      <div class="meal-thumb">🍴</div>
+      <div class="meal-info"><div class="meal-name">${m.dish_name}</div>
+        <div class="meal-meta">${fmtTime(m.logged_at)} · Б:${m.protein.toFixed(0)}г Ж:${m.fat.toFixed(0)}г У:${m.carbs.toFixed(0)}г</div></div>
+      <div class="meal-kcal">${Math.round(m.calories)}</div>
+      ${deletable?`<button class="meal-del" onclick="delMeal(${m.id})">✕</button>`:''}
+    </div>`).join('');
+}
+async function delMeal(id){
+  try{await api(`/meals/${id}`,{method:'DELETE'});document.getElementById('mi-'+id)?.remove();toast('Удалено');loadDashboard();}
+  catch{toast('Ошибка','error');}
+}
+
+function onFileChange(e){const f=e.target.files[0];if(f)setFile(f);}
+function setFile(f){
+  selFile=f;const r=new FileReader();
+  r.onload=e=>{document.getElementById('preview-img').src=e.target.result;
+    document.getElementById('preview-wrap').style.display='block';
+    document.getElementById('result-box').style.display='none';};
+  r.readAsDataURL(f);document.getElementById('analyze-btn').disabled=false;
+}
+async function analyzePhoto(){
+  if(!selFile)return;
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Анализ...';
+  try{
+    const form=new FormData();form.append('file',selFile);
+    const m=await api('/meals/analyze',{method:'POST',body:form});
+    document.getElementById('r-dish').textContent=m.dish_name;
+    set('r-kcal',Math.round(m.calories));set('r-prot',m.protein.toFixed(1));
+    set('r-fat',m.fat.toFixed(1));set('r-carb',m.carbs.toFixed(1));
+    const labels={high:'✓ Высокая уверенность',medium:'~ Средняя уверенность',low:'? Низкая уверенность'};
+    const cb=document.getElementById('r-conf');
+    cb.className='conf '+(m.ai_confidence||'medium');cb.textContent=labels[m.ai_confidence]||m.ai_confidence;
+    document.getElementById('result-box').style.display='block';toast('Сохранено в дневник!');
+  }catch(e){toast(e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='Анализировать';}
+}
+function resetUpload(){
+  selFile=null;document.getElementById('file-input').value='';
+  document.getElementById('preview-wrap').style.display='none';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('analyze-btn').disabled=true;
+}
+
+function setJournalToday(){
+  const t=todayStr();
+  const jf=document.getElementById('j-from');
+  const jt=document.getElementById('j-to');
+  if(jf)jf.value=t;if(jt)jt.value=t;
+}
+async function loadJournal(){
+  const from=document.getElementById('j-from').value,to=document.getElementById('j-to').value;
+  if(!from||!to)return toast('Укажи период','error');
+  const fromD=new Date(from),toD=new Date(to);
+  if(fromD>toD)return toast('Дата начала должна быть раньше конца','error');
+  try{
+    let all=[];const cur=new Date(fromD);
+    while(cur<=toD){
+      const d=cur.toISOString().split('T')[0];
+      const meals=await api('/meals/history?target_date='+d);
+      all=[...all,...meals];cur.setDate(cur.getDate()+1);
+    }
+    all.sort((a,b)=>new Date(b.logged_at)-new Date(a.logged_at));
+    const summary=document.getElementById('journal-summary');
+    if(all.length){
+      const totalKcal=all.reduce((s,m)=>s+m.calories,0);
+      const days=Math.max(1,Math.round((toD-fromD)/(86400000))+1);
+      summary.style.display='block';
+      summary.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+        background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+        <span>📅 ${days} ${days===1?'день':'дней'}</span>
+        <span>🔥 Итого: <b style="color:var(--text)">${Math.round(totalKcal)} ккал</b></span>
+        <span>📊 Среднее: <b style="color:var(--accent)">${Math.round(totalKcal/days)} ккал/день</b></span>
+        <span>🍽 Приёмов: <b style="color:var(--text)">${all.length}</b></span></div>`;
+    }else{summary.style.display='none';}
+    renderMeals('journal-meals',all,false);
+  }catch(e){toast('Ошибка: '+e.message,'error');}
+}
+
+async function loadWeight(){
+  try{
+    const entries=await api('/weight/');
+    renderWeightChart(entries);renderWeightList(entries);
+  }catch{toast('Ошибка загрузки веса','error');}
+}
+function renderWeightChart(entries){
+  if(weightChartInst)weightChartInst.destroy();
+  if(!entries.length)return;
+  weightChartInst=new Chart(document.getElementById('weightChart').getContext('2d'),{
+    type:'line',
+    data:{labels:entries.map(e=>fmtDate(e.logged_at)),datasets:[{
+      label:'Вес (кг)',data:entries.map(e=>e.weight_kg),
+      borderColor:'rgba(110,181,255,0.8)',backgroundColor:'rgba(110,181,255,0.08)',
+      borderWidth:2,pointRadius:4,pointBackgroundColor:'rgba(110,181,255,1)',fill:true,tension:0.3
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1c28',borderColor:'#252535',borderWidth:1,titleColor:'#e2e2f0',bodyColor:'#5a5a72',padding:10}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#5a5a72',font:{family:"'Golos Text'",size:10},maxTicksLimit:7},border:{color:'transparent'}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#5a5a72',font:{family:"'Golos Text'",size:10}},border:{color:'transparent'}}}}
+  });
+}
+function renderWeightList(entries){
+  const el=document.getElementById('weight-list');
+  if(!entries.length){el.innerHTML=`<div class="empty"><div class="empty-icon">⚖</div>Нет записей. Добавь первый замер!</div>`;return;}
+  const sorted=[...entries].reverse();
+  el.innerHTML=sorted.map((e,i)=>{
+    const prev=sorted[i+1];
+    let diff='';
+    if(prev){const d=(e.weight_kg-prev.weight_kg).toFixed(1);diff=`<span class="weight-diff ${d>0?'up':'down'}">${d>0?'+':''}${d} кг</span>`;}
+    return `<div class="weight-item" id="wi-${e.id}">
+      <div class="weight-val">${e.weight_kg} кг</div>
+      <div class="weight-date"><div>${fmtDate(e.logged_at)}</div>${e.note?`<div style="color:var(--muted);font-size:11px;margin-top:2px;">${e.note}</div>`:''}</div>
+      ${diff}<button class="btn-del" onclick="delWeight(${e.id})">Удалить</button></div>`;
+  }).join('');
+}
+async function addWeight(){
+  const kg=parseFloat(document.getElementById('w-kg').value);
+  const date=document.getElementById('w-date').value;
+  const note=v('w-note');
+  if(!kg||kg<20||kg>300)return toast('Укажи корректный вес (20–300 кг)','error');
+  try{
+    await api('/weight/',{method:'POST',body:JSON.stringify({weight_kg:kg,logged_at:date||null,note:note||null})});
+    document.getElementById('w-kg').value='';document.getElementById('w-note').value='';
+    await loadWeight();toast('Вес добавлен!');
+  }catch(e){toast(e.message,'error');}
+}
+async function delWeight(id){
+  try{await api('/weight/'+id,{method:'DELETE'});await loadWeight();toast('Удалено');}
+  catch{toast('Ошибка','error');}
+}
+
+async function loadReminders(){
+  try{
+    const list=await api('/reminders/');const el=document.getElementById('rem-list');
+    if(!list.length){el.innerHTML=`<div class="empty"><div class="empty-icon">⏰</div>Нет напоминаний</div>`;return;}
+    el.innerHTML=list.map(r=>`<div class="rem-item" id="ri-${r.id}">
+      <div class="rem-time">${r.remind_time.slice(0,5)}</div><div class="rem-label">${r.label}</div>
+      <button class="btn-del" onclick="delReminder(${r.id})">Удалить</button></div>`).join('');
+  }catch{toast('Ошибка','error');}
+}
+async function addReminder(){
+  const t=v('rem-time'),l=v('rem-label')||'Время поесть!';
+  if(!t)return toast('Укажи время','error');
+  try{
+    await api('/reminders/',{method:'POST',body:JSON.stringify({remind_time:t+':00',label:l})});
+    document.getElementById('rem-time').value='';document.getElementById('rem-label').value='';
+    await loadReminders();toast('Напоминание добавлено');
+  }catch(e){toast(e.message,'error');}
+}
+async function delReminder(id){
+  try{await api('/reminders/'+id,{method:'DELETE'});document.getElementById('ri-'+id)?.remove();toast('Удалено');}
+  catch{toast('Ошибка','error');}
+}
+
+async function getLink(){
+  const btn=document.getElementById('get-code-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Генерирую...';
+  try{
+    const d=await api('/auth/link-code',{method:'POST'});
+    document.getElementById('link-code').textContent=d.code;
+    document.getElementById('link-code-wrap').style.display='block';
+    document.getElementById('link-status').innerHTML=
+      `<span style="color:var(--accent)">✓ Готово!</span> Отправь боту: <span style="color:var(--accent);font-family:monospace;">/link ${d.code}</span>`;
+  }catch(e){toast(e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='Получить новый код';}
+}
+
+const v=id=>document.getElementById(id)?.value?.trim()??'';
+const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+const todayStr=()=>new Date().toISOString().split('T')[0];
+const fmtTime=iso=>new Date(iso).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+const fmtDate=iso=>new Date(iso).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+let toastTimer;
+function toast(msg,type='success'){
+  const el=document.getElementById('toast');el.textContent=msg;el.className='show '+type;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='',3000);
+}
+</script>
+</body>
+</html>

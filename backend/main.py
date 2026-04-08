@@ -60,10 +60,11 @@ app.add_middleware(
 )
 
 # ── Роуты API ── регистрируем ВСЕ до любого mount
-from api.routes import auth, meals, reminders as reminder_routes
+from api.routes import auth, meals, reminders as reminder_routes, weight as weight_routes
 app.include_router(auth.router, prefix="/api")
 app.include_router(meals.router, prefix="/api")
 app.include_router(reminder_routes.router, prefix="/api")
+app.include_router(weight_routes.router, prefix="/api")
 
 
 @app.get("/health")
@@ -72,13 +73,10 @@ async def health():
 
 
 @app.get("/app")
-async def serve_frontend():
-    from fastapi.responses import FileResponse
-    return FileResponse("index.html")
-    
-if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host=settings.app_host,
-        port=settings.app_port,
-    )
+async def frontend():
+    if os.path.exists(FRONTEND_PATH):
+        return FileResponse(FRONTEND_PATH)
+    return {"error": f"Not found: {FRONTEND_PATH}"}
+
+
+# НЕТ app.mount — это и было причиной 405

@@ -1,13 +1,13 @@
-# 🥗 Calorie Tracker (NutriLens) — MVP
+# 🥗 Calorie Tracker — MVP
 
-Трекер калорий с AI-распознаванием еды через фото.
+Трекер калорий с AI-распознаванием еды через фото.  
 **Stack:** FastAPI + Aiogram 3 + Ollama (LLaVA) + SQLite
 
 ---
 
-## 🚀 Начало
+## 🚀 Быстрый старт
 
-### 1. Клонирование репо и создание виртуального окружения
+### 1. Клонируй репо и создай виртуальное окружение
 
 ```bash
 cd backend
@@ -20,13 +20,13 @@ venv\Scripts\activate
 source venv/bin/activate
 ```
 
-### 2. Установка зависимостей
+### 2. Установи зависимости
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Настройка конфига
+### 3. Настрой конфиг
 
 ```bash
 copy .env.example .env    # Windows
@@ -34,29 +34,26 @@ copy .env.example .env    # Windows
 cp .env.example .env      # Linux/macOS
 ```
 
-Отредактируйте `.env`:
+Отредактируй `.env`:
+- Вставь свой `TELEGRAM_TOKEN`
+- Оставь `USE_MOCK_AI=true` для разработки без GPU
 
-- Вставьте свой `TELEGRAM_TOKEN`
-- Оставьте `USE_MOCK_AI=true` для разработки без GPU
-
-### 4. Запуск
+### 4. Запусти
 
 ```bash
 python main.py
 ```
 
-Откройте: http://localhost:8000/docs — интерактивная документация API
+Открой: http://localhost:8000/docs — интерактивная документация API
 
 ---
 
-## 🤖 Переключение на AI (удаление заглушек)
+## 🤖 Переключение на реальный AI (на универском компе)
 
-### Установка Ollama
-
+### Установи Ollama
 https://ollama.com/download
 
-### Скачивание модели
-
+### Скачай модель
 ```bash
 # Рекомендуемая (нужно ~6 GB RAM/VRAM)
 ollama pull llava:7b
@@ -65,12 +62,13 @@ ollama pull llava:7b
 ollama pull moondream
 ```
 
-### Изменение .env
-
+### Измени .env
 ```
 USE_MOCK_AI=false
 OLLAMA_MODEL=llava:7b
 ```
+
+Перезапусти сервер — всё, AI работает!
 
 ---
 
@@ -96,16 +94,16 @@ backend/
 
 ## 🔑 API Endpoints
 
-| Метод | URL                                           | Описание                          |
-| ---------- | --------------------------------------------- | ----------------------------------------- |
-| POST       | `/api/auth/register`                        | Регистрация                    |
-| POST       | `/api/auth/login`                           | Вход                                  |
-| GET        | `/api/auth/me`                              | Текущий пользователь   |
-| POST       | `/api/meals/analyze`                        | Загрузить фото еды        |
-| GET        | `/api/meals/today`                          | Приёмы пищи за сегодня |
-| GET        | `/api/meals/totals`                         | КБЖУ за сегодня              |
-| GET        | `/api/meals/history?target_date=2024-01-15` | История                            |
-| DELETE     | `/api/meals/{id}`                           | Удалить запись               |
-| GET        | `/api/reminders/`                           | Список напоминаний       |
-| POST       | `/api/reminders/`                           | Добавить напоминание   |
-| DELETE     | `/api/reminders/{id}`                       | Удалить напоминание     |
+| Метод | URL | Описание |
+|-------|-----|----------|
+| POST | `/api/auth/register` | Регистрация |
+| POST | `/api/auth/login` | Вход |
+| GET | `/api/auth/me` | Текущий пользователь |
+| POST | `/api/meals/analyze` | Загрузить фото еды |
+| GET | `/api/meals/today` | Приёмы пищи за сегодня |
+| GET | `/api/meals/totals` | КБЖУ за сегодня |
+| GET | `/api/meals/history?target_date=2024-01-15` | История |
+| DELETE | `/api/meals/{id}` | Удалить запись |
+| GET | `/api/reminders/` | Список напоминаний |
+| POST | `/api/reminders/` | Добавить напоминание |
+| DELETE | `/api/reminders/{id}` | Удалить напоминание |

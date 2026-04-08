@@ -93,11 +93,19 @@ async def get_weekly_stats(
 
 @router.get("/history", response_model=list[MealResponse])
 async def get_meals_history(
-    target_date: date = Query(description="Дата YYYY-MM-DD"),
+    target_date: date | None = Query(default=None),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    meals = await get_meals_by_date(db, current_user.id, target_date)
+    # Поддержка как одиночной даты, так и диапазона
+    if date_from and date_to:
+        from db.crud_extra import get_meals_by_range
+        meals = await get_meals_by_range(db, current_user.id, date_from, date_to)
+    else:
+        d = target_date or date.today()
+        meals = await get_meals_by_date(db, current_user.id, d)
     return [MealResponse.model_validate(m) for m in meals]
 
 
