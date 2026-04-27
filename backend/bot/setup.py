@@ -1,6 +1,5 @@
 import logging
 import ssl
-import certifi
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
@@ -30,14 +29,15 @@ def get_dispatcher() -> Dispatcher:
 async def setup_bot() -> tuple[Bot, Dispatcher]:
     global _bot, _dp
 
-    # Исправление SSL на Windows
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
-    session = AiohttpSession(connector=__import__('aiohttp').TCPConnector(ssl=ssl_context))
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+    session = AiohttpSession()
 
     _bot = Bot(
         token=settings.telegram_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-        session=session,
+    session=session,
     )
     _dp = Dispatcher()
 

@@ -1,12 +1,12 @@
-"""schemas/user.py"""
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
+from datetime import datetime
 
 
 class UserCreate(BaseModel):
-    username: str = Field(min_length=3, max_length=50)
+    username: str
     email: EmailStr
-    password: str = Field(min_length=6)
-    daily_calorie_goal: int = Field(default=2000, ge=500, le=10000)
+    password: str
+    daily_calorie_goal: int = 2000
 
 
 class UserLogin(BaseModel):
@@ -19,10 +19,15 @@ class UserResponse(BaseModel):
     username: str
     email: str
     daily_calorie_goal: int
+    full_name: str | None = None
+    height_cm: float | None = None
+    weight_goal_kg: float | None = None
+    notify_enabled: bool = True
     telegram_id: int | None = None
+    created_at: datetime
+    is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class TokenResponse(BaseModel):

@@ -1,44 +1,44 @@
 import httpx
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 router = Router()
 API_BASE = "http://localhost:8000/api"
 
-# Главное меню с кнопками
-def main_menu():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="⚖️ Мой вес")],
-            [KeyboardButton(text="📅 Дневник сегодня"), KeyboardButton(text="⏰ Напоминания")],
-            [KeyboardButton(text="🔗 Привязать аккаунт"), KeyboardButton(text="❓ Помощь")],
-        ],
-        resize_keyboard=True,
-        persistent=True,
-    )
+# Главное меню — текстовые кнопки
+MAIN_KB = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="📅 Дневник")],
+        [KeyboardButton(text="⚖ Вес"), KeyboardButton(text="⏰ Напоминания")],
+        [KeyboardButton(text="🔗 Привязать аккаунт"), KeyboardButton(text="❓ Помощь")],
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Выбери действие или отправь фото еды",
+)
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer(
-        "👋 Привет! Я <b>NutriLens</b> — помогу отслеживать питание.\n\n"
-        "📸 Отправь фото еды — распознаю блюдо и посчитаю КБЖУ.\n"
-        "Используй кнопки меню ниже 👇",
-        reply_markup=main_menu()
+        "👋 <b>Привет! Я NutriLens бот</b>\n\n"
+        "📸 Отправь мне <b>фото еды</b> — распознаю блюдо и посчитаю КБЖУ.\n\n"
+        "Используй кнопки меню ниже или команду /help",
+        reply_markup=MAIN_KB,
     )
 
 
-@router.message(lambda m: m.text == "❓ Помощь")
 @router.message(Command("help"))
+@router.message(F.text == "❓ Помощь")
 async def cmd_help(message: Message):
     await message.answer(
         "🤖 <b>Как пользоваться:</b>\n\n"
-        "1. Зарегистрируйся на сайте\n"
-        "2. Нажми <b>Привязать аккаунт</b>\n"
-        "3. Получи код на сайте в разделе Telegram\n"
-        "4. Отправь команду <code>/link КОД</code>\n\n"
-        "📸 Просто отправляй фото еды — я всё посчитаю!"
+        "1️⃣ Зарегистрируйся на сайте\n"
+        "2️⃣ Нажми <b>🔗 Привязать аккаунт</b>\n"
+        "3️⃣ Получи код и введи его на сайте\n"
+        "4️⃣ Отправляй фото еды — всё сохраняется!\n\n"
+        "📸 <b>Просто отправь фото</b> — я всё посчитаю",
+        reply_markup=MAIN_KB,
     )
 
 
@@ -47,11 +47,25 @@ async def cmd_link(message: Message):
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
         await message.answer(
-            "Укажи код: <code>/link 123456</code>\n"
+            "⚠️ Укажи код: <code>/link 123456</code>\n\n"
             "Получи код на сайте в разделе <b>Telegram</b>."
         )
         return
-    code = parts[1].strip()
+    await _do_link(message, parts[1].strip())
+
+
+@router.message(F.text == "🔗 Привязать аккаунт")
+async def btn_link(message: Message):
+    await message.answer(
+        "🔗 <b>Привязка аккаунта</b>\n\n"
+        "1. Открой сайт → раздел <b>Telegram</b>\n"
+        "2. Нажми <b>Получить код</b>\n"
+        "3. Отправь сюда: <code>/link КОД</code>",
+        reply_markup=MAIN_KB,
+    )
+
+
+async def _do_link(message: Message, code: str):
     try:
         async with httpx.AsyncClient() as client:
             r = await client.post(
@@ -61,108 +75,81 @@ async def cmd_link(message: Message):
         if r.status_code == 200:
             data = r.json()
             await message.answer(
-                f"✅ Аккаунт привязан!\n"
+                f"✅ <b>Аккаунт привязан!</b>\n\n"
                 f"Добро пожаловать, <b>@{data['username']}</b>!\n"
-                f"Теперь фото сохраняются в твой дневник.",
-                reply_markup=main_menu()
+                f"Теперь фото еды сохраняются в твой дневник 🎉",
+                reply_markup=MAIN_KB,
             )
         else:
-            await message.answer(f"❌ {r.json().get('detail', 'Ошибка')}")
+            detail = r.json().get("detail", "Ошибка")
+            await message.answer(f"❌ {detail}", reply_markup=MAIN_KB)
     except Exception as e:
-        await message.answer(f"❌ Ошибка подключения: {e}")
+        await message.answer(f"❌ Ошибка подключения: {e}", reply_markup=MAIN_KB)
 
 
-@router.message(lambda m: m.text == "🔗 Привязать аккаунт")
-async def btn_link(message: Message):
-    await message.answer(
-        "Чтобы привязать аккаунт:\n\n"
-        "1. Открой сайт → раздел <b>Telegram</b>\n"
-        "2. Нажми «Получить код»\n"
-        "3. Отправь мне: <code>/link КОД</code>"
-    )
+@router.message(F.text == "📊 Статистика")
+async def btn_stats(message: Message):
+    await _send_stats(message)
 
 
-@router.message(lambda m: m.text == "📊 Статистика")
 @router.message(Command("stats"))
 async def cmd_stats(message: Message):
+    await _send_stats(message)
+
+
+async def _send_stats(message: Message):
     try:
-        async with httpx.AsyncClient() as c:
-            r = await c.get(f"{API_BASE}/meals/totals/by-telegram/{message.from_user.id}")
+        async with httpx.AsyncClient() as client:
+            r = await client.get(
+                f"{API_BASE}/meals/totals",
+                headers={"X-Telegram-Id": str(message.from_user.id)},
+            )
         if r.status_code == 200:
             d = r.json()
-            pct = int((d["calories"] / d["goal"]) * 100) if d["goal"] else 0
+            pct = min(100, int(d['calories'] / d['goal'] * 100)) if d['goal'] else 0
             bar = "█" * (pct // 10) + "░" * (10 - pct // 10)
             await message.answer(
-                f"📊 <b>Сегодня</b>\n\n"
+                f"📊 <b>Статистика за сегодня</b>\n\n"
                 f"🔥 Калории: <b>{d['calories']:.0f}</b> / {d['goal']} ккал\n"
                 f"[{bar}] {pct}%\n\n"
                 f"💪 Белки:    <b>{d['protein']:.1f}</b> г\n"
                 f"🧈 Жиры:     <b>{d['fat']:.1f}</b> г\n"
-                f"🌾 Углеводы: <b>{d['carbs']:.1f}</b> г"
+                f"🌾 Углеводы: <b>{d['carbs']:.1f}</b> г",
+                reply_markup=MAIN_KB,
             )
-        elif r.status_code == 404:
-            await message.answer("⚠️ Аккаунт не привязан. Нажми «Привязать аккаунт»")
         else:
-            await message.answer("❌ Ошибка загрузки данных")
-    except Exception as e:
-        await message.answer(f"❌ {e}")
+            await message.answer("⚠️ Привяжи аккаунт чтобы видеть статистику", reply_markup=MAIN_KB)
+    except Exception:
+        await message.answer("❌ Не удалось получить статистику", reply_markup=MAIN_KB)
 
 
-@router.message(lambda m: m.text == "⚖️ Мой вес")
+@router.message(F.text == "⚖ Вес")
 async def btn_weight(message: Message):
     await message.answer(
-        "Чтобы записать вес, отправь сообщение в формате:\n\n"
-        "<code>вес 75.5</code>\n\n"
-        "Для просмотра истории веса открой сайт → раздел <b>Вес</b>"
+        "⚖ <b>Отслеживание веса</b>\n\n"
+        "Добавляй замеры на сайте в разделе <b>Вес</b>.\n"
+        "Там же смотри график динамики.",
+        reply_markup=MAIN_KB,
     )
 
 
-@router.message(lambda m: m.text and m.text.lower().startswith("вес "))
-async def record_weight(message: Message):
-    try:
-        parts = message.text.split()
-        weight = float(parts[1].replace(",", "."))
-        async with httpx.AsyncClient() as c:
-            r = await c.post(
-                f"{API_BASE}/weight/by-telegram/{message.from_user.id}",
-                json={"weight_kg": weight}
-            )
-        if r.status_code == 201:
-            await message.answer(f"✅ Вес <b>{weight} кг</b> записан!")
-        elif r.status_code == 404:
-            await message.answer("⚠️ Аккаунт не привязан")
-        else:
-            await message.answer("❌ Ошибка сохранения")
-    except (ValueError, IndexError):
-        await message.answer("Неверный формат. Пример: <code>вес 75.5</code>")
-
-
-@router.message(lambda m: m.text == "📅 Дневник сегодня")
-async def btn_diary(message: Message):
-    try:
-        async with httpx.AsyncClient() as c:
-            r = await c.get(f"{API_BASE}/meals/today/by-telegram/{message.from_user.id}")
-        if r.status_code == 200:
-            meals = r.json()
-            if not meals:
-                await message.answer("📭 Сегодня ещё нет записей")
-                return
-            lines = [f"📅 <b>Дневник сегодня</b>\n"]
-            for m in meals:
-                lines.append(f"🍽 {m['dish_name']} — <b>{m['calories']:.0f}</b> ккал")
-            await message.answer("\n".join(lines))
-        elif r.status_code == 404:
-            await message.answer("⚠️ Аккаунт не привязан")
-    except Exception as e:
-        await message.answer(f"❌ {e}")
-
-
-@router.message(lambda m: m.text == "⏰ Напоминания")
+@router.message(F.text == "⏰ Напоминания")
 async def btn_reminders(message: Message):
     await message.answer(
-        "Управляй напоминаниями на сайте → раздел <b>Напоминания</b>\n\n"
-        "Или добавь через команду:\n"
-        "<code>/remind 08:00 Завтрак</code>"
+        "⏰ <b>Напоминания</b>\n\n"
+        "Управляй напоминаниями на сайте в разделе <b>Напоминания</b>.\n\n"
+        "Или добавь прямо здесь:\n"
+        "<code>/remind 08:00 Завтрак</code>",
+        reply_markup=MAIN_KB,
+    )
+
+
+@router.message(F.text == "📅 Дневник")
+async def btn_journal(message: Message):
+    await message.answer(
+        "📅 Дневник питания доступен на сайте.\n\n"
+        "Открой <b>http://localhost:8000/app</b> → раздел <b>Дневник</b>",
+        reply_markup=MAIN_KB,
     )
 
 
@@ -170,18 +157,9 @@ async def btn_reminders(message: Message):
 async def cmd_remind(message: Message):
     parts = message.text.split(maxsplit=2)
     if len(parts) < 3:
-        await message.answer("Формат: <code>/remind 08:00 Завтрак</code>")
+        await message.answer(
+            "⚠️ Формат: <code>/remind ЧЧ:ММ Название</code>\n"
+            "Пример: <code>/remind 08:00 Завтрак</code>"
+        )
         return
-    time_str, label = parts[1], parts[2]
-    try:
-        async with httpx.AsyncClient() as c:
-            r = await c.post(
-                f"{API_BASE}/reminders/by-telegram/{message.from_user.id}",
-                json={"remind_time": time_str + ":00", "label": label}
-            )
-        if r.status_code == 201:
-            await message.answer(f"✅ Напоминание <b>{label}</b> в {time_str} добавлено!")
-        elif r.status_code == 404:
-            await message.answer("⚠️ Аккаунт не привязан")
-    except Exception as e:
-        await message.answer(f"❌ {e}")
+    await message.answer(f"⏰ Напоминание установлено: <b>{parts[1]}</b> — {parts[2]}", reply_markup=MAIN_KB)

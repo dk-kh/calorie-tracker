@@ -215,6 +215,7 @@ nav{margin-top:12px;flex:1;}
       <div class="nav-item" onclick="showPage('journal',this)"><span class="nav-icon">≡</span> Дневник</div>
       <div class="nav-item" onclick="showPage('weight',this)"><span class="nav-icon">⚖</span> Вес</div>
       <div class="nav-item" onclick="showPage('reminders',this)"><span class="nav-icon">◷</span> Напоминания</div>
+      <div class="nav-item" onclick="showPage('profile',this)"><span class="nav-icon">👤</span> Профиль</div>
       <div class="nav-item" onclick="showPage('link',this)"><span class="nav-icon">🔗</span> Telegram</div>
     </nav>
     <div class="s-footer">
@@ -349,6 +350,53 @@ nav{margin-top:12px;flex:1;}
       </div>
     </div>
 
+
+    <!-- Profile -->
+    <div id="page-profile" class="page">
+      <div class="ph"><div class="ph-title">Профиль</div><div class="ph-sub">Редактирование данных и настройки</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+        <div class="card">
+          <div class="card-title">ЛИЧНЫЕ ДАННЫЕ</div>
+          <div class="fg"><label class="fl">Имя</label><input class="fi" id="p-name" placeholder="Ваше имя"></div>
+          <div class="fg"><label class="fl">Email</label><input class="fi" id="p-email" disabled style="opacity:.5"></div>
+          <div class="fg"><label class="fl">Цель ккал/день</label><input class="fi" type="number" id="p-goal" placeholder="2000"></div>
+          <div class="fg"><label class="fl">Рост (см)</label><input class="fi" type="number" id="p-height" placeholder="175"></div>
+          <div class="fg"><label class="fl">Целевой вес (кг)</label><input class="fi" type="number" id="p-wgoal" placeholder="70"></div>
+          <button class="btn btn-p" onclick="saveProfile()">Сохранить</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="card">
+            <div class="card-title">СМЕНИТЬ ПАРОЛЬ</div>
+            <div class="fg"><label class="fl">Текущий пароль</label><input class="fi" type="password" id="p-curpass" placeholder="••••••••"></div>
+            <div class="fg"><label class="fl">Новый пароль</label><input class="fi" type="password" id="p-newpass" placeholder="••••••••"></div>
+            <div class="fg"><label class="fl">Повтор</label><input class="fi" type="password" id="p-newpass2" placeholder="••••••••"></div>
+            <button class="btn btn-p" onclick="changePassword()">Изменить пароль</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">УВЕДОМЛЕНИЯ</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-size:13px;">Telegram-уведомления</span>
+              <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                <input type="checkbox" id="p-notify" style="opacity:0;width:0;height:0;"
+                  onchange="saveProfile()">
+                <span id="toggle-span" style="position:absolute;cursor:pointer;inset:0;background:var(--border);
+                  border-radius:24px;transition:.2s;" onclick="this.style.background=document.getElementById('p-notify').checked?'var(--accent)':'var(--border)'">
+                  <span style="position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;
+                    background:white;border-radius:50%;transition:.2s;"></span>
+                </span>
+              </label>
+            </div>
+            <div class="card-title" style="margin-top:8px;">TELEGRAM</div>
+            <div id="tg-status" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+            <button class="btn btn-g" id="tg-unlink-btn" style="display:none;font-size:11px;padding:7px 14px;" onclick="unlinkTelegram()">Отвязать Telegram</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -439,6 +487,7 @@ function showPage(name,el){
   if(name==='journal')loadJournal();
   if(name==='reminders')loadReminders();
   if(name==='weight')loadWeight();
+  if(name==='profile'){loadProfile();}
 }
 
 async function loadDashboard(){
@@ -646,6 +695,63 @@ async function getLink(){
   finally{btn.disabled=false;btn.innerHTML='Получить новый код';}
 }
 
+
+// ── PROFILE ──
+async function loadProfile(){
+  if(!user)return;
+  const el=id=>document.getElementById(id);
+  el('p-name').value=user.full_name||'';
+  el('p-email').value=user.email||'';
+  el('p-goal').value=user.daily_calorie_goal||2000;
+  el('p-height').value=user.height_cm||'';
+  el('p-wgoal').value=user.weight_goal_kg||'';
+  el('p-notify').checked=user.notify_enabled!==false;
+  el('toggle-span').style.background=user.notify_enabled!==false?'var(--accent)':'var(--border)';
+  if(user.telegram_id){
+    el('tg-status').innerHTML=`<span style="color:var(--accent)">✓ Привязан</span> (ID: ${user.telegram_id})`;
+    el('tg-unlink-btn').style.display='';
+  }else{
+    el('tg-status').textContent='Не привязан';
+    el('tg-unlink-btn').style.display='none';
+  }
+}
+async function saveProfile(){
+  const el=id=>document.getElementById(id);
+  try{
+    const data={};
+    const name=el('p-name').value.trim(); if(name)data.full_name=name;
+    const goal=parseInt(el('p-goal').value); if(goal)data.daily_calorie_goal=goal;
+    const h=parseFloat(el('p-height').value); if(h)data.height_cm=h;
+    const wg=parseFloat(el('p-wgoal').value); if(wg)data.weight_goal_kg=wg;
+    data.notify_enabled=el('p-notify').checked;
+    user=await api('/auth/profile',{method:'PATCH',body:JSON.stringify(data)});
+    document.getElementById('s-user').textContent='@'+user.username;
+    toast('Профиль сохранён!');
+  }catch(e){toast(e.message,'error');}
+}
+async function changePassword(){
+  const cur=document.getElementById('p-curpass').value;
+  const np=document.getElementById('p-newpass').value;
+  const np2=document.getElementById('p-newpass2').value;
+  if(!cur||!np)return toast('Заполни все поля','error');
+  if(np!==np2)return toast('Пароли не совпадают','error');
+  if(np.length<6)return toast('Минимум 6 символов','error');
+  try{
+    await api('/auth/change-password',{method:'POST',body:JSON.stringify({current_password:cur,new_password:np})});
+    document.getElementById('p-curpass').value='';
+    document.getElementById('p-newpass').value='';
+    document.getElementById('p-newpass2').value='';
+    toast('Пароль изменён!');
+  }catch(e){toast(e.message,'error');}
+}
+async function unlinkTelegram(){
+  try{
+    await api('/auth/unlink-telegram',{method:'DELETE'});
+    user.telegram_id=null;
+    loadProfile();
+    toast('Telegram отвязан');
+  }catch(e){toast(e.message,'error');}
+}
 const v=id=>document.getElementById(id)?.value?.trim()??'';
 const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
 const todayStr=()=>new Date().toISOString().split('T')[0];

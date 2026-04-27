@@ -34,7 +34,18 @@ async def lifespan(app: FastAPI):
     bot_task = None
     if settings.telegram_token != "mock_token":
         from bot.setup import start_polling
-        bot_task = asyncio.create_task(start_polling())
+
+        async def _bot_runner():
+            try:
+                logger.info("Starting Telegram bot polling...")
+                await start_polling()
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.error(f"Bot crashed: {type(e).__name__}: {e}", exc_info=True)
+
+        bot_task = asyncio.create_task(_bot_runner())
+        await asyncio.sleep(0.1)  # даём задаче стартовать
         logger.info("Telegram bot started")
 
     logger.info(f"Frontend: http://localhost:{settings.app_port}/app")
